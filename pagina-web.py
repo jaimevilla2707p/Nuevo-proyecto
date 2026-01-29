@@ -266,9 +266,12 @@ def call_openrouter(prompt):
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
                 "Authorization": f"Bearer {API_KEY}",
+                "HTTP-Referer": "https://kumis-del-balcon.streamlit.app", # Recomendado por OpenRouter
+                "X-Title": "Kumis del Balcon",
+                "Content-Type": "application/json"
             },
             data=json.dumps({
-                "model": "google/gemini-2.0-flash-exp:free",
+                "model": "meta-llama/llama-3.2-3b-instruct:free",
                 "messages": [
                     {"role": "system", "content": full_context},
                     {"role": "user", "content": prompt}
@@ -276,7 +279,9 @@ def call_openrouter(prompt):
             })
         )
         if response.status_code == 200:
-            return response.json()['choices'][0]['message']['content']
+            res_json = response.json()
+            if 'choices' in res_json and len(res_json['choices']) > 0:
+                return res_json['choices'][0]['message']['content']
         return "Muuu... parece que mi conexión falló. ¡Prueba de nuevo! 🐮"
     except:
         return "Lo siento, la vaquita está descansando. Intenta en un momento. 🐮"
