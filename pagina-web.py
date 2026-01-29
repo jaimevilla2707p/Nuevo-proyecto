@@ -135,8 +135,13 @@ menu_categories = {
 }
 
 
-# --- SIDEBAR CART ---
-st.sidebar.title("🛒 Tu Carrito")
+# --- SIDEBAR (CONFIG & CART) ---
+with st.sidebar:
+    st.markdown("### ⚙️ Configuración de Chatbot")
+    user_api_key = st.text_input("OpenRouter API Key", type="password", help="Obtén tu llave en openrouter.ai")
+    
+    st.markdown("---")
+    st.markdown("### 🛒 Tu Carrito")
 if st.session_state.cart:
     total = sum(item['price'] for item in st.session_state.cart)
     
@@ -238,9 +243,14 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("🐮 Chat con la Vaquita (IA)")
 st.sidebar.caption("¡Pregúntame sobre el menú o sobre Sevilla!")
 
-API_KEY = "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"
 
 def call_openrouter(prompt):
+    # Usar la llave del usuario si está disponible, si no la default (que sabemos que falla pero es el placeholder)
+    api_key_to_use = user_api_key if user_api_key else "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"
+    
+    if not user_api_key:
+        return "¡Hola! Por favor, ingresa tu API Key de OpenRouter en la barra lateral izquierda ⬅️ para poder conversar conmigo. 🐮"
+
     try:
         # Contexto del negocio para la IA
         menu_ctx = "\n".join([f"- {k}: {', '.join([i['name'] + ' ($' + str(i['price']) + ')' for i in v])}" for k, v in menu_categories.items()])
@@ -254,39 +264,54 @@ def call_openrouter(prompt):
         SOBRE SEVILLA:
         - Capital Cafetera de Colombia.
         - Patrimonio del Paisaje Cultural Cafetero.
-        - Famosa por sus balcones, el Festival de la Bandola y la Basílica San Luis Gonzaga.
         
         REGLAS DE ORO:
-        1. TOLERANCIA ORTOGRÁFICA: Responde a todo tipo de preguntas sobre el menú, NO importa la ortografía o si faltan tildes.
-        2. ENTENDIMIENTO FLEXIBLE: Si el usuario escribe mal un producto (ej. 'cumis', 'pandebono', 'tortas'), identifica a qué se refiere y responde con la información correcta del menú.
-        3. RECOMENDACIONES: Siempre recomienda maridajes (ej. Kumis con Pandebono o Torta de Almojábana).
-        4. SEVILLA: Si preguntan por Sevilla, invítales a visitarnos frente al parque principal.
-        5. ESTILO: Sé breve, cordial y usa términos cercanos ("vecino", "amigo", "claro que sí").
+        1. TOLERANCIA ORTOGRÁFICA: Responde a todo tipo de preguntas sobre el menú, NO importa la ortografía (ej. 'kumy', 'pandebon', 'tortas').
+        2. RECOMENDACIONES: Siempre recomienda maridajes (ej. Kumis con Pandebono).
+        3. ESTILO: Sé breve, cordial y usa términos como "vecino" o "amigo".
         """
         
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "HTTP-Referer": "https://kumis-del-balcon.streamlit.app", # Recomendado por OpenRouter
-                "X-Title": "Kumis del Balcon",
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "model": "meta-llama/llama-3.2-3b-instruct:free",
-                "messages": [
-                    {"role": "system", "content": full_context},
-                    {"role": "user", "content": prompt}
-                ]
-            })
-        )
-        if response.status_code == 200:
-            res_json = response.json()
-            if 'choices' in res_json and len(res_json['choices']) > 0:
-                return res_json['choices'][0]['message']['content']
-        return f"Muuu... parece que mi conexión falló (Error {response.status_code}). ¡Prueba de nuevo! 🐮"
+        # Lista de modelos a intentar (fallover logic)
+        models = [
+            "meta-llama/llama-3.2-3b-instruct:free",
+            "google/gemini-2.0-flash-exp:free",
+            "mistralai/mistral-7b-instruct:free"
+        ]
+        
+        last_error = ""
+        for model in models:
+            try:
+                response = requests.post(
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key_to_use}",
+                        "HTTP-Referer": "https://kumis-del-balcon.streamlit.app",
+                        "X-Title": "Kumis del Balcon",
+                        "Content-Type": "application/json"
+                    },
+                    data=json.dumps({
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": full_context},
+                            {"role": "user", "content": prompt}
+                        ]
+                    }),
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    res_json = response.json()
+                    if 'choices' in res_json and len(res_json['choices']) > 0:
+                        return res_json['choices'][0]['message']['content']
+                else:
+                    last_error = f"Error {response.status_code}"
+            except Exception as e:
+                last_error = str(e)
+                continue
+        
+        return f"Muuu... tuve problemas técnicos ({last_error}). ¿Podrías revisar tu API Key o intentar más tarde? 🐮"
     except Exception as e:
-        return f"Lo siento, la vaquita está descansando (Error: {str(e)[:50]}). Intenta en un momento. 🐮"
+        return f"Lo siento, la vaquita está descansando (Error: {str(e)[:50]}). 🐮"
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
