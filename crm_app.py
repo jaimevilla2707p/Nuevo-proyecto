@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import os
 from datetime import datetime
+import requests
+import json
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Growth CRM", page_icon="🚀", layout="wide")
@@ -36,7 +38,7 @@ contacts_df, deals_df = load_data()
 # --- SIDEBAR STYLE ---
 st.sidebar.title("🚀 Growth CRM")
 st.sidebar.markdown("---")
-page = st.sidebar.radio("Go to", ["Dashboard", "Contacts", "Pipeline", "Analytics"])
+page = st.sidebar.radio("Go to", ["Dashboard", "Contacts", "Pipeline", "Analytics", "AI Assistant"])
 
 # --- DASHBOARD PAGE ---
 if page == "Dashboard":
@@ -210,22 +212,61 @@ elif page == "Pipeline":
         save_data(contacts_df, deals_df)
         st.rerun()
 
-# --- ANALYTICS PAGE ---
-elif page == "Analytics":
-    st.title("📈 Analytics")
+# --- AI ASSISTANT PAGE ---
+elif page == "AI Assistant":
+    st.title("🤖 AI Sales Assistant")
+    st.markdown("Use AI to analyze your pipeline, draft emails, and get sales advice.")
+
+    API_KEY = "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"
     
-    if not deals_df.empty:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Revenue by Stage")
-            fig_bar = px.bar(deals_df, x="Stage", y="Value", color="Stage", title="Pipeline Value by Stage")
-            st.plotly_chart(fig_bar, use_container_width=True)
-        
-        with col2:
-            st.subheader("Deals by Company")
-            fig_pie = px.pie(deals_df, names="Company", values="Value", title="Revenue Share by Client")
-            st.plotly_chart(fig_pie, use_container_width=True)
-    else:
-        st.info("Add deals to see analytics!")
+    def call_openrouter(prompt):
+        try:
+            response = requests.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {API_KEY}",
+                },
+                data=json.dumps({
+                    "model": "google/gemini-2.0-flash-exp:free",
+                    "messages": [{"role": "user", "content": prompt}]
+                })
+            )
+            if response.status_code == 200:
+                return response.json()['choices'][0]['message']['content']
+            else:
+                return f"Error: {response.status_code} - {response.text}"
+        except Exception as e:
+            return f"Error de conexión: {str(e)}"
+
+    tab1, tab2 = st.tabs(["💡 Estrategia de Ventas", "📧 Redactor de Correos"])
+
+    with tab1:
+        st.subheader("Análisis de Pipeline")
+        if st.button("Generar Consejos de Venta"):
+            with st.spinner("Analizando tus datos..."):
+                # Prepare context
+                deals_summary = deals_df.to_string() if not deals_df.empty else "No hay negocios activos."
+                prompt = f"Eres un experto en ventas. Analiza estos negocios en mi CRM y dame 3 consejos clave para cerrar más ventas esta semana:\n\n{deals_summary}"
+                
+                advice = call_openrouter(prompt)
+                st.markdown("### 📋 Recomendaciones de la IA")
+                st.write(advice)
+
+    with tab2:
+        st.subheader("Redactor de Seguimiento")
+        if not contacts_df.empty:
+            contact_to_email = st.selectbox("Selecciona un contacto:", contacts_df['Name'].unique())
+            selected_contact = contacts_df[contacts_df['Name'] == contact_to_email].iloc[0]
+            
+            tone = st.radio("Tono del correo:", ["Formal", "Amigable", "Persuasivo"])
+            
+            if st.button("Redactar Correo"):
+                with st.spinner("Redactando..."):
+                    prompt = f"Escribe un correo electrónico corto de seguimiento para {selected_contact['Name']} de la empresa {selected_contact['Company']}. El tono debe ser {tone}. El objetivo es agendar una reunión para hablar sobre nuestros productos lácteos artesanales."
+                    
+                    email_draft = call_openrouter(prompt)
+                    st.markdown("### 📝 Borrador Sugerido")
+                    st.text_area("Copia este texto:", email_draft, height=300)
+        else:
+            st.info("Agrega contactos primero para redactar correos.")
 

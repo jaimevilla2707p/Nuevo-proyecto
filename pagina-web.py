@@ -2,6 +2,8 @@ import streamlit as st
 from PIL import Image
 import random
 import urllib.parse
+import requests
+import json
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Kumis del Balcón 🐮", page_icon="🐮", layout="wide")
@@ -200,6 +202,76 @@ Quiero hacer el siguiente pedido (*{order_type}*):
     
 else:
     st.sidebar.info("Tu carrito está vacío. ¡Antójate de algo delicioso! 😋")
+
+# --- AI ASSISTANT (CHATBOT) ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("🐮 Chat con la Vaquita (IA)")
+st.sidebar.caption("¡Pregúntame sobre el menú o sobre Sevilla!")
+
+API_KEY = "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"
+
+def call_openrouter(prompt):
+    try:
+        # Contexto del negocio para la IA
+        menu_ctx = "\n".join([f"- {k}: {', '.join([i['name'] + ' ($' + str(i['price']) + ')' for i in v])}" for k, v in menu_categories.items()])
+        full_context = f"""
+        Eres 'La Vaquita', la asistente virtual de 'Kumis del Balcón' en Sevilla, Valle del Cauca.
+        Eres amigable, campestre y usas muchos emojis de vacas y café 🐮☕.
+        
+        NUESTRO MENÚ ACTUAL:
+        {menu_ctx}
+        
+        SOBRE SEVILLA:
+        - Capital Cafetera de Colombia.
+        - Patrimonio del Paisaje Cultural Cafetero.
+        - Famosa por sus balcones, el Festival de la Bandola y la Basílica San Luis Gonzaga.
+        
+        REGLAS:
+        - Recomienda maridajes (ej. Kumis con Pandebono o Torta de Almojábana).
+        - Si preguntan por Sevilla, invítales a visitarnos frente al parque principal.
+        - Sé breve y muy cordial.
+        """
+        
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+            },
+            data=json.dumps({
+                "model": "google/gemini-2.0-flash-exp:free",
+                "messages": [
+                    {"role": "system", "content": full_context},
+                    {"role": "user", "content": prompt}
+                ]
+            })
+        )
+        if response.status_code == 200:
+            return response.json()['choices'][0]['message']['content']
+        return "Muuu... parece que mi conexión falló. ¡Prueba de nuevo! 🐮"
+    except:
+        return "Lo siento, la vaquita está descansando. Intenta en un momento. 🐮"
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    with st.sidebar.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# React to user input
+if prompt := st.sidebar.chat_input("¿Qué me recomiendas?"):
+    st.sidebar.chat_message("user").markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
+
+    with st.sidebar.chat_message("assistant"):
+        response = call_openrouter(prompt)
+        st.markdown(response)
+    st.session_state.messages.append({"role": "assistant", "content": response})
+
+if st.sidebar.button("Borrar Chat", key="clear_chat"):
+    st.session_state.messages = []
+    st.rerun()
 
 
 # --- HEADER SECTION ---
