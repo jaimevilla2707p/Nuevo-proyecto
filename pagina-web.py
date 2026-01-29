@@ -245,11 +245,10 @@ st.sidebar.caption("¡Pregúntame sobre el menú o sobre Sevilla!")
 
 
 def call_openrouter(prompt):
-    # Usar la llave del usuario si está disponible, si no la default (que sabemos que falla pero es el placeholder)
-    api_key_to_use = user_api_key if user_api_key else "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"
+    # Usar la llave del usuario si está disponible, si no la nueva llave proporcionada por el usuario
+    api_key_to_use = user_api_key if user_api_key else "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"
     
-    if not user_api_key:
-        return "¡Hola! Por favor, ingresa tu API Key de OpenRouter en la barra lateral izquierda ⬅️ para poder conversar conmigo. 🐮"
+    # Ya no bloqueamos si no hay llave manual, usamos la de por defecto
 
     try:
         # Contexto del negocio para la IA
@@ -273,9 +272,9 @@ def call_openrouter(prompt):
         
         # Lista de modelos a intentar (fallover logic)
         models = [
-            "meta-llama/llama-3.2-3b-instruct:free",
+            "meta-llama/llama-3.2-3b-instruct",
             "google/gemini-2.0-flash-exp:free",
-            "mistralai/mistral-7b-instruct:free"
+            "mistralai/mistral-7b-instruct-v0.1"
         ]
         
         last_error = ""
