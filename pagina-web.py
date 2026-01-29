@@ -284,9 +284,9 @@ def call_openrouter(prompt):
             res_json = response.json()
             if 'choices' in res_json and len(res_json['choices']) > 0:
                 return res_json['choices'][0]['message']['content']
-        return "Muuu... parece que mi conexión falló. ¡Prueba de nuevo! 🐮"
-    except:
-        return "Lo siento, la vaquita está descansando. Intenta en un momento. 🐮"
+        return f"Muuu... parece que mi conexión falló (Error {response.status_code}). ¡Prueba de nuevo! 🐮"
+    except Exception as e:
+        return f"Lo siento, la vaquita está descansando (Error: {str(e)[:50]}). Intenta en un momento. 🐮"
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
