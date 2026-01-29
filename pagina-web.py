@@ -1,7 +1,7 @@
 import streamlit as st
 from PIL import Image
-import time
 import random
+import urllib.parse
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Kumis del Balcón 🐮", page_icon="🐮", layout="wide")
@@ -17,7 +17,12 @@ st.markdown("""
     
     html, body, [class*="css"] {
         font-family: 'Nunito', sans-serif;
-        color: #4a4a4a;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .footer, .sevilla-section {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+        }
     }
     
     .main-title {
@@ -61,20 +66,39 @@ st.markdown("""
         transform: scale(1.05);
     }
     
-    .footer {
-        background-color: #f8f9fa;
+    .footer, .sevilla-section {
+        background-color: rgba(0, 0, 0, 0.05);
         padding: 40px;
         margin-top: 50px;
         border-top: 3px solid #e67e22;
+        border-radius: 15px;
         text-align: center;
     }
-    
-    .sevilla-section {
-        background-color: #ecf0f1;
-        padding: 30px;
-        border-radius: 15px;
-        margin-top: 40px;
+
+    .intro-box {
         text-align: center;
+        max-width: 800px;
+        margin: 0 auto;
+        font-size: 1.2rem;
+        background-color: #fff9c4;
+        color: #4a4a4a;
+        padding: 15px;
+        border-radius: 10px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .footer, .sevilla-section {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        .intro-box {
+            background-color: rgba(255, 249, 196, 0.15) !important;
+            color: #eee !important;
+        }
+    }
+
+    /* Target specific headings within sections for better contrast */
+    .sevilla-section h2, .sevilla-section h3, .footer h3 {
+        color: inherit !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -98,26 +122,81 @@ if st.session_state.cart:
 
     st.sidebar.markdown("---")
     
-    if st.sidebar.button("Pagar con Nequi / Bancolombia (QR)", key="pay_qr"):
-        with st.sidebar:
-            st.success("¡Escanea para pagar!")
-            try:
-                st.image("nequi_qr.png", caption="Nequi / Bancolombia")
-            except:
-                st.warning("QR no cargado.")
-            st.info("1. Escanea el código.\n2. Envía el comprobante al WhatsApp.")
+    st.sidebar.markdown("---")
+    
+    # --- CHECKOUT FORM ---
+    st.sidebar.subheader("� Finalizar Pedido")
+    order_type = st.sidebar.selectbox("¿Dónde recibirás tu pedido?", ["🏠 A domicilio", "🪑 Para la mesa"])
+    
+    with st.sidebar.form("checkout_form"):
+        client_name = st.text_input("Nombre Completo:")
+        
+        if order_type == "🏠 A domicilio":
+            client_address = st.text_input("Dirección de Entrega:")
+            table_info = ""
+        else:
+            table_info = st.text_input("Número de Mesa:")
+            client_address = "Local - Mesa " + table_info
             
-            st.markdown(f"""
-            <a href="https://wa.me/573127321920?text=Hola,%20adjunto%20comprobante%20del%20pedido%20{random.randint(1000,9999)}" target="_blank">
-                <button style="background-color: #25D366; color: white; border: none; padding: 10px; width: 100%; border-radius: 5px; font-weight: bold;">
-                    📲 Enviar Comprobante WhatsApp
-                </button>
-            </a>
-            """, unsafe_allow_html=True)
+        client_phone = st.text_input("Teléfono / WhatsApp:")
+        payment_method = st.radio("Método de Pago:", ["Nequi / Bancolombia", "Efectivo", "Wompi"])
+        
+        submitted = st.form_submit_button("Calculadora de Pedido")
+    
+    # --- WHATSAPP MESSAGE GENERATOR ---
+    check_condition = client_name and client_phone and (client_address if order_type == "🏠 A domicilio" else table_info)
+    
+    if check_condition:
+        # Create text for message
+        items_list = ""
+        for item in st.session_state.cart:
+            items_list += f"- {item['name']} (${item['price']:,})\n"
+            
+        order_details = f"*Mesa:* {table_info}" if order_type == "🪑 Para la mesa" else f"*Dirección:* {client_address}"
+        
+        whatsapp_msg = f"""*¡Hola Kumis del Balcón!* 🐮
+Quiero hacer el siguiente pedido (*{order_type}*):
 
-    # Wompi Button Logic
-    url_wompi = f"https://checkout.wompi.co/p/?public-key=pub_test_Q5yDA9xoKdePzhSGeVe9HAez74wxobRY&currency=COP&amount-in-cents={total*100}&reference=KB-{random.randint(10000,99999)}"
-    st.sidebar.link_button("💳 Pagar con Wompi", url_wompi)
+{items_list}
+💰 *TOTAL: ${total:,}*
+
+📍 *Datos del Cliente:*
+*Nombre:* {client_name}
+{order_details}
+*Tel:* {client_phone}
+*Pago:* {payment_method}
+"""
+        whatsapp_encoded = urllib.parse.quote(whatsapp_msg)
+        whatsapp_link = f"https://wa.me/573127321920?text={whatsapp_encoded}"
+        
+        st.sidebar.success("✅ ¡Datos listos!")
+        st.sidebar.markdown(f"""
+        <a href="{whatsapp_link}" target="_blank">
+            <button style="background-color: #25D366; color: white; border: none; padding: 12px; width: 100%; border-radius: 10px; font-weight: bold; font-size: 1.1rem; cursor: pointer;">
+                📲 Enviar Pedido por WhatsApp
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
+        
+        if payment_method == "Wompi":
+             url_wompi = f"https://checkout.wompi.co/p/?public-key=pub_test_Q5yDA9xoKdePzhSGeVe9HAez74wxobRY&currency=COP&amount-in-cents={total*100}&reference=KB-{random.randint(10000,99999)}"
+             st.sidebar.markdown(f"<br>", unsafe_allow_html=True)
+             st.sidebar.link_button(f"💳 Ir a Pagar ${total:,} con Wompi", url_wompi)
+        
+        # Add Nequi QR for Eat-in orders
+        if order_type == "🪑 Para la mesa" and payment_method == "Nequi / Bancolombia":
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("📱 Pago Rápido Nequi")
+            try:
+                st.sidebar.image("nequi_qr.png", caption="Escanea para pagar tu pedido en mesa")
+            except:
+                st.sidebar.warning("⚠️ QR de Nequi no disponible en este momento.")
+             
+    else:
+        warning_msg = "⚠️ Por favor completa tus datos para finalizar el pedido."
+        if order_type == "🪑 Para la mesa" and not table_info:
+            warning_msg = "⚠️ Por favor indica tu número de mesa."
+        st.sidebar.warning(warning_msg)
     
 else:
     st.sidebar.info("Tu carrito está vacío. ¡Antójate de algo delicioso! 😋")
@@ -139,7 +218,7 @@ with col_logo:
 
 # --- INTRO ---
 st.markdown("""
-<div style="text-align: center; color: #4a4a4a; max-width: 800px; margin: 0 auto; font-size: 1.2rem; background-color: #fff9c4; padding: 15px; border-radius: 10px;">
+<div class="intro-box">
     Disfruta de la mejor tradición sevillana. Nuestros productos son 100% artesanales, 
     hechos con amor y los mejores ingredientes del <b>Valle del Cauca</b>.
 </div>
@@ -207,7 +286,6 @@ for tab, (category, items) in zip(tabs, menu_categories.items()):
                     if st.button(f"Agregar al Carrito", key=f"btn_{category}_{i}"):
                         st.session_state.cart.append(item)
                         st.toast(f"✅ ¡{item['name']} agregado!")
-                        time.sleep(0.5)
                         st.rerun()
 
 st.write("")
@@ -261,5 +339,7 @@ st.markdown("""
     <small>© 2026 Kumis del Balcón. Hecho con ❤️ en Colombia.</small>
 </div>
 """, unsafe_allow_html=True)
+
+
 
 
