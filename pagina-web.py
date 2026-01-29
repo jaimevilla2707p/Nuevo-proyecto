@@ -105,6 +105,36 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- DATA: MENU ITEMS ---
+menu_categories = {
+    "🐮 Lácteos y Arroz con Leche": [
+        {"name": "Kumis Tradicional (16oz)", "price": 8000, "desc": "Cremoso, dulce y delicioso. El favorito.", "img": "kumis.png"},
+        {"name": "Kumis Litro", "price": 18000, "desc": "Para compartir en familia.", "img": "kumis.png"},
+        {"name": "Yogurt de Frutas", "price": 9000, "desc": "Mora, Melocotón o Fresa.", "img": "yogurt.png"},
+        {"name": "Arroz con Leche", "price": 6500, "desc": "Con canela, pasas y queso rallado.", "img": "arroz.png"},
+        {"name": "Fresas con Crema", "price": 12000, "desc": "Fresas del campo con nuestra crema especial.", "img": "fresas.png"},
+    ],
+    "🥐 Panadería y Tradición": [
+        {"name": "Torta de Almojábana", "price": 7000, "desc": "Esponjosa torta de queso y maíz.", "img": "torta_almojabana.png"},
+        {"name": "Torta de Choclo", "price": 7000, "desc": "Dulce de maíz tierno con queso.", "img": "torta_choclo.png"},
+        {"name": "Pandebono Valluno", "price": 3500, "desc": "Calientito y chicludo.", "img": "pandebono.png"},
+        {"name": "Buñuelo Grande", "price": 3000, "desc": "Crocante por fuera, suave por dentro.", "img": "bunuelo.png"},
+        {"name": "Empanada de Cambray", "price": 4000, "desc": "Rellena de dulce de guayaba y queso.", "img": "empanada.png"},
+    ],
+    "🍰 Repostería y Dulces": [
+        {"name": "Cheesecake de Maracuyá", "price": 9500, "desc": "Postre frío con salsa natural.", "img": "cheesecake.png"},
+        {"name": "Galleta de Chip", "price": 2500, "desc": "Galleta estilo americano.", "img": "galleta.png"},
+        {"name": "Torta de Zanahoria", "price": 7500, "desc": "Con frosting de queso crema.", "img": "torta_zanahoria.png"},
+    ],
+    "☕ Bebidas y Algo más": [
+        {"name": "Café de la Casa", "price": 4000, "desc": "Tinto campesino cultivado en Sevilla.", "img": "cafe.png"},
+        {"name": "Chocolate Santafereno", "price": 6000, "desc": "En leche, espumoso y con clavos.", "img": "chocolate.png"},
+        {"name": "Avena Helada", "price": 5000, "desc": "Espesa y refrescante.", "img": "avena.png"},
+        {"name": "Sándwich Jamón y Queso", "price": 9000, "desc": "En pan artesanal.", "img": "sandwich.png"},
+    ]
+}
+
+
 # --- SIDEBAR CART ---
 st.sidebar.title("🛒 Tu Carrito")
 if st.session_state.cart:
@@ -296,35 +326,6 @@ st.markdown("""
 </div>
 <br>
 """, unsafe_allow_html=True)
-
-# --- DATA: MENU ITEMS ---
-menu_categories = {
-    "🐮 Lácteos y Arroz con Leche": [
-        {"name": "Kumis Tradicional (16oz)", "price": 8000, "desc": "Cremoso, dulce y delicioso. El favorito.", "img": "kumis.png"},
-        {"name": "Kumis Litro", "price": 18000, "desc": "Para compartir en familia.", "img": "kumis.png"},
-        {"name": "Yogurt de Frutas", "price": 9000, "desc": "Mora, Melocotón o Fresa.", "img": "yogurt.png"},
-        {"name": "Arroz con Leche", "price": 6500, "desc": "Con canela, pasas y queso rallado.", "img": "arroz.png"},
-        {"name": "Fresas con Crema", "price": 12000, "desc": "Fresas del campo con nuestra crema especial.", "img": "fresas.png"},
-    ],
-    "🥐 Panadería y Tradición": [
-        {"name": "Torta de Almojábana", "price": 7000, "desc": "Esponjosa torta de queso y maíz.", "img": "torta_almojabana.png"},
-        {"name": "Torta de Choclo", "price": 7000, "desc": "Dulce de maíz tierno con queso.", "img": "torta_choclo.png"},
-        {"name": "Pandebono Valluno", "price": 3500, "desc": "Calientito y chicludo.", "img": "pandebono.png"},
-        {"name": "Buñuelo Grande", "price": 3000, "desc": "Crocante por fuera, suave por dentro.", "img": "bunuelo.png"},
-        {"name": "Empanada de Cambray", "price": 4000, "desc": "Rellena de dulce de guayaba y queso.", "img": "empanada.png"},
-    ],
-    "🍰 Repostería y Dulces": [
-        {"name": "Cheesecake de Maracuyá", "price": 9500, "desc": "Postre frío con salsa natural.", "img": "cheesecake.png"},
-        {"name": "Galleta de Chip", "price": 2500, "desc": "Galleta estilo americano.", "img": "galleta.png"},
-        {"name": "Torta de Zanahoria", "price": 7500, "desc": "Con frosting de queso crema.", "img": "torta_zanahoria.png"},
-    ],
-    "☕ Bebidas y Algo más": [
-        {"name": "Café de la Casa", "price": 4000, "desc": "Tinto campesino cultivado en Sevilla.", "img": "cafe.png"},
-        {"name": "Chocolate Santafereno", "price": 6000, "desc": "En leche, espumoso y con clavos.", "img": "chocolate.png"},
-        {"name": "Avena Helada", "price": 5000, "desc": "Espesa y refrescante.", "img": "avena.png"},
-        {"name": "Sándwich Jamón y Queso", "price": 9000, "desc": "En pan artesanal.", "img": "sandwich.png"},
-    ]
-}
 
 # --- RENDER MENU ---
 st.markdown("<h2 style='text-align: center; color: #2c3e50;'>Nuestra Carta</h2>", unsafe_allow_html=True)
