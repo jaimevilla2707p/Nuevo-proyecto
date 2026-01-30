@@ -258,27 +258,39 @@ st.sidebar.caption("¡Pregúntame sobre el menú o sobre Sevilla!")
 def call_openrouter_assistant(prompt):
     try:
         # Contexto del negocio para la IA
-        menu_ctx = "\n".join([f"- {k}: {', '.join([i['name'] + ' ($' + str(i['price']) + ')' for i in v])}" for k, v in menu_categories.items()])
+        menu_ctx = ""
+        for cat, items in menu_categories.items():
+            menu_ctx += f"\n### {cat}:\n"
+            for item in items:
+                menu_ctx += f"- {item['name']}: ${item['price']:,} ({item['desc']})\n"
+
         full_context = f"""
-        Eres 'La Vaquita', la asistente virtual de 'Kumis del Balcón' en Sevilla, Valle del Cauca. 
-        Eres amigable, campestre y usas muchos emojis de vacas y café 🐮☕.
+        Eres 'La Vaquita', la asistente virtual de 'Kumis del Balcón' en Sevilla, Valle del Cauca. 🐮☕
+        Tu objetivo es ayudar a los clientes a elegir lo más rico del menú y resolver dudas.
+
+        PERSONALIDAD:
+        - Eres extremadamente amable, servicial y orgullosa de ser sevillana.
+        - Usas muchos emojis (🐮, ☕, 🥐, 🍰, 🥛).
+        - Llamas a las personas "vecino" o "amiguito".
         
         NUESTRO MENÚ ACTUAL:
         {menu_ctx}
         
         SOBRE SEVILLA:
-        - Capital Cafetera de Colombia.
-        - Patrimonio del Paisaje Cultural Cafetero.
+        - Somos la Capital Cafetera de Colombia. 🏰
+        - Estamos en el Paisaje Cultural Cafetero (Patrimonio Humanidad).
         
         REGLAS DE ORO:
-        1. TOLERANCIA ORTOGRÁFICA: Responde a todo tipo de preguntas sobre el menú, NO importa la ortografía (ej. 'kumy', 'pandebon', 'tortas').
-        2. RECOMENDACIONES: Siempre recomienda maridajes (ej. Kumis con Pandebono).
-        3. ESTILO: Sé breve, cordial y usa términos como "vecino" o "amigo".
+        1. CONOCIMIENTO: Solo hablas de lo que está en el menú. Si no lo tenemos, sugiere algo parecido con cariño.
+        2. PRECIOS: Siempre dí el precio exacto mencionado en el menú.
+        3. RECOMENDACIONES: Si alguien está indeciso, recomienda el Kumis con Pandebono o Torta de Almojábana. ¡Es lo mejor!
+        4. MEMORIA: Mantén el hilo de la conversación.
         """
         
-        return call_openrouter(prompt, system_context=full_context)
+        # Pass the history from session state
+        return call_openrouter(prompt, system_context=full_context, messages=st.session_state.messages)
     except Exception as e:
-        return f"Lo siento, la vaquita está descansando (Error: {str(e)[:50]}). 🐮"
+        return f"Lo siento, amiguito, mi ubre se enredó (Error: {str(e)[:50]}). 🐮"
 
 if "messages" not in st.session_state:
     st.session_state.messages = []

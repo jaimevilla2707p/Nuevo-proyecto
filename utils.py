@@ -13,9 +13,9 @@ def get_api_key():
         return st.secrets["OPENROUTER_API_KEY"]
     return os.getenv("OPENROUTER_API_KEY", "")
 
-def call_openrouter(prompt, system_context="", model="google/gemini-2.0-flash-exp:free", manual_api_key=""):
+def call_openrouter(prompt=None, system_context="", model="google/gemini-2.0-flash-exp:free", manual_api_key="", messages=None):
     """
-    Calls the OpenRouter API with fallback logic.
+    Calls the OpenRouter API with fallback logic and message history support.
     """
     api_key = manual_api_key if manual_api_key else get_api_key()
     
@@ -32,9 +32,26 @@ def call_openrouter(prompt, system_context="", model="google/gemini-2.0-flash-ex
     if model not in models:
         models.insert(0, model)
 
+    data_body = {
+        "model": "",
+        "messages": []
+    }
+    
+    # Prep the base conversation
+    if messages:
+        # Use provided history list
+        data_body["messages"] = [{"role": "system", "content": system_context}] + messages
+    else:
+        # Fallback to single prompt mode
+        data_body["messages"] = [
+            {"role": "system", "content": system_context},
+            {"role": "user", "content": prompt}
+        ]
+
     last_error = ""
     for current_model in models:
         try:
+            data_body["model"] = current_model
             response = requests.post(
                 url="https://openrouter.ai/api/v1/chat/completions",
                 headers={
@@ -43,13 +60,7 @@ def call_openrouter(prompt, system_context="", model="google/gemini-2.0-flash-ex
                     "X-Title": "Kumis del Balcon",
                     "Content-Type": "application/json"
                 },
-                data=json.dumps({
-                    "model": current_model,
-                    "messages": [
-                        {"role": "system", "content": system_context},
-                        {"role": "user", "content": prompt}
-                    ]
-                }),
+                data=json.dumps(data_body),
                 timeout=15
             )
             
