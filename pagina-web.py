@@ -138,15 +138,19 @@ menu_categories = {
 
 # --- SIDEBAR (CONFIG & CART) ---
 with st.sidebar:
-    # Hide Streamlit UI elements (hamburger menu, footer, header)
-    st.markdown("""
-        <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            [data-testid="stToolbar"] {visibility: hidden !important;}
-        </style>
-    """, unsafe_allow_html=True)
+    # Check for developer mode via URL query parameter (?dev=true)
+    is_dev = st.query_params.get("dev", "false").lower() == "true"
+    
+    # Hide Streamlit UI for non-developers
+    if not is_dev:
+        st.markdown("""
+            <style>
+                #MainMenu {visibility: hidden;}
+                footer {visibility: hidden;}
+                header {visibility: hidden;}
+                [data-testid="stToolbar"] {visibility: hidden !important;}
+            </style>
+        """, unsafe_allow_html=True)
 
     st.markdown("### 🛒 Tu Carrito")
 if st.session_state.cart:
@@ -244,6 +248,59 @@ Quiero hacer el siguiente pedido (*{order_type}*):
     
 else:
     st.sidebar.info("Tu carrito está vacío. ¡Antójate de algo delicioso! 😋")
+
+# --- AI ASSISTANT (CHATBOT) ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("🐮 Chat con la Vaquita (IA)")
+st.sidebar.caption("¡Pregúntame sobre el menú o sobre Sevilla!")
+
+
+def call_openrouter_assistant(prompt):
+    try:
+        # Contexto del negocio para la IA
+        menu_ctx = "\n".join([f"- {k}: {', '.join([i['name'] + ' ($' + str(i['price']) + ')' for i in v])}" for k, v in menu_categories.items()])
+        full_context = f"""
+        Eres 'La Vaquita', la asistente virtual de 'Kumis del Balcón' en Sevilla, Valle del Cauca. 
+        Eres amigable, campestre y usas muchos emojis de vacas y café 🐮☕.
+        
+        NUESTRO MENÚ ACTUAL:
+        {menu_ctx}
+        
+        SOBRE SEVILLA:
+        - Capital Cafetera de Colombia.
+        - Patrimonio del Paisaje Cultural Cafetero.
+        
+        REGLAS DE ORO:
+        1. TOLERANCIA ORTOGRÁFICA: Responde a todo tipo de preguntas sobre el menú, NO importa la ortografía (ej. 'kumy', 'pandebon', 'tortas').
+        2. RECOMENDACIONES: Siempre recomienda maridajes (ej. Kumis con Pandebono).
+        3. ESTILO: Sé breve, cordial y usa términos como "vecino" o "amigo".
+        """
+        
+        return call_openrouter(prompt, system_context=full_context)
+    except Exception as e:
+        return f"Lo siento, la vaquita está descansando (Error: {str(e)[:50]}). 🐮"
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    with st.sidebar.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# React to user input
+if prompt := st.sidebar.chat_input("¿Qué me recomiendas?"):
+    st.sidebar.chat_message("user").markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
+
+    with st.sidebar.chat_message("assistant"):
+        response = call_openrouter_assistant(prompt)
+        st.markdown(response)
+    st.session_state.messages.append({"role": "assistant", "content": response})
+
+if st.sidebar.button("Borrar Chat", key="clear_chat"):
+    st.session_state.messages = []
+    st.rerun()
 
 st.write("---")
 
