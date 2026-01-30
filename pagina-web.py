@@ -4,6 +4,7 @@ import random
 import urllib.parse
 import requests
 import json
+from utils import call_openrouter
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Kumis del Balcón 🐮", page_icon="🐮", layout="wide")
@@ -137,10 +138,16 @@ menu_categories = {
 
 # --- SIDEBAR (CONFIG & CART) ---
 with st.sidebar:
-    st.markdown("### ⚙️ Configuración de Chatbot")
-    user_api_key = st.text_input("OpenRouter API Key", type="password", help="Obtén tu llave en openrouter.ai")
-    
-    st.markdown("---")
+    # Hide Streamlit UI elements (hamburger menu, footer, header)
+    st.markdown("""
+        <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            [data-testid="stToolbar"] {visibility: hidden !important;}
+        </style>
+    """, unsafe_allow_html=True)
+
     st.markdown("### 🛒 Tu Carrito")
 if st.session_state.cart:
     total = sum(item['price'] for item in st.session_state.cart)
@@ -238,101 +245,7 @@ Quiero hacer el siguiente pedido (*{order_type}*):
 else:
     st.sidebar.info("Tu carrito está vacío. ¡Antójate de algo delicioso! 😋")
 
-# --- AI ASSISTANT (CHATBOT) ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("🐮 Chat con la Vaquita (IA)")
-st.sidebar.caption("¡Pregúntame sobre el menú o sobre Sevilla!")
-
-
-def call_openrouter(prompt):
-    # Usar la llave del usuario si está disponible, si no la nueva llave proporcionada por el usuario
-    api_key_to_use = user_api_key if user_api_key else "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"
-    
-    # Ya no bloqueamos si no hay llave manual, usamos la de por defecto
-
-    try:
-        # Contexto del negocio para la IA
-        menu_ctx = "\n".join([f"- {k}: {', '.join([i['name'] + ' ($' + str(i['price']) + ')' for i in v])}" for k, v in menu_categories.items()])
-        full_context = f"""
-        Eres 'La Vaquita', la asistente virtual de 'Kumis del Balcón' en Sevilla, Valle del Cauca. 
-        Eres amigable, campestre y usas muchos emojis de vacas y café 🐮☕.
-        
-        NUESTRO MENÚ ACTUAL:
-        {menu_ctx}
-        
-        SOBRE SEVILLA:
-        - Capital Cafetera de Colombia.
-        - Patrimonio del Paisaje Cultural Cafetero.
-        
-        REGLAS DE ORO:
-        1. TOLERANCIA ORTOGRÁFICA: Responde a todo tipo de preguntas sobre el menú, NO importa la ortografía (ej. 'kumy', 'pandebon', 'tortas').
-        2. RECOMENDACIONES: Siempre recomienda maridajes (ej. Kumis con Pandebono).
-        3. ESTILO: Sé breve, cordial y usa términos como "vecino" o "amigo".
-        """
-        
-        # Lista de modelos a intentar (fallover logic)
-        models = [
-            "meta-llama/llama-3.2-3b-instruct",
-            "google/gemini-2.0-flash-exp:free",
-            "mistralai/mistral-7b-instruct-v0.1"
-        ]
-        
-        last_error = ""
-        for model in models:
-            try:
-                response = requests.post(
-                    url="https://openrouter.ai/api/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key_to_use}",
-                        "HTTP-Referer": "https://kumis-del-balcon.streamlit.app",
-                        "X-Title": "Kumis del Balcon",
-                        "Content-Type": "application/json"
-                    },
-                    data=json.dumps({
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": full_context},
-                            {"role": "user", "content": prompt}
-                        ]
-                    }),
-                    timeout=10
-                )
-                
-                if response.status_code == 200:
-                    res_json = response.json()
-                    if 'choices' in res_json and len(res_json['choices']) > 0:
-                        return res_json['choices'][0]['message']['content']
-                else:
-                    last_error = f"Error {response.status_code}"
-            except Exception as e:
-                last_error = str(e)
-                continue
-        
-        return f"Muuu... tuve problemas técnicos ({last_error}). ¿Podrías revisar tu API Key o intentar más tarde? 🐮"
-    except Exception as e:
-        return f"Lo siento, la vaquita está descansando (Error: {str(e)[:50]}). 🐮"
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Display chat messages from history on app rerun
-for message in st.session_state.messages:
-    with st.sidebar.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# React to user input
-if prompt := st.sidebar.chat_input("¿Qué me recomiendas?"):
-    st.sidebar.chat_message("user").markdown(prompt)
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-    with st.sidebar.chat_message("assistant"):
-        response = call_openrouter(prompt)
-        st.markdown(response)
-    st.session_state.messages.append({"role": "assistant", "content": response})
-
-if st.sidebar.button("Borrar Chat", key="clear_chat"):
-    st.session_state.messages = []
-    st.rerun()
+st.write("---")
 
 
 # --- HEADER SECTION ---

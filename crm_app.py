@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 import requests
 import json
+from utils import call_openrouter
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Growth CRM", page_icon="🚀", layout="wide")
@@ -38,7 +39,7 @@ contacts_df, deals_df = load_data()
 # --- SIDEBAR STYLE ---
 st.sidebar.title("🚀 Growth CRM")
 st.sidebar.markdown("---")
-page = st.sidebar.radio("Go to", ["Dashboard", "Contacts", "Pipeline", "Analytics", "AI Assistant"])
+page = st.sidebar.radio("Go to", ["Dashboard", "Contacts", "Pipeline", "Analytics"])
 
 # --- DASHBOARD PAGE ---
 if page == "Dashboard":
@@ -212,61 +213,36 @@ elif page == "Pipeline":
         save_data(contacts_df, deals_df)
         st.rerun()
 
-# --- AI ASSISTANT PAGE ---
-elif page == "AI Assistant":
-    st.title("🤖 AI Sales Assistant")
-    st.markdown("Use AI to analyze your pipeline, draft emails, and get sales advice.")
-
-    API_KEY = "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"
+# --- ANALYTICS PAGE ---
+elif page == "Analytics":
+    st.title("📈 Analytics & Insights")
     
-    def call_openrouter(prompt):
-        try:
-            response = requests.post(
-                url="https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {API_KEY}",
-                },
-                data=json.dumps({
-                    "model": "google/gemini-2.0-flash-exp:free",
-                    "messages": [{"role": "user", "content": prompt}]
-                })
-            )
-            if response.status_code == 200:
-                return response.json()['choices'][0]['message']['content']
-            else:
-                return f"Error: {response.status_code} - {response.text}"
-        except Exception as e:
-            return f"Error de conexión: {str(e)}"
-
-    tab1, tab2 = st.tabs(["💡 Estrategia de Ventas", "📧 Redactor de Correos"])
-
-    with tab1:
-        st.subheader("Análisis de Pipeline")
-        if st.button("Generar Consejos de Venta"):
-            with st.spinner("Analizando tus datos..."):
-                # Prepare context
-                deals_summary = deals_df.to_string() if not deals_df.empty else "No hay negocios activos."
-                prompt = f"Eres un experto en ventas. Analiza estos negocios en mi CRM y dame 3 consejos clave para cerrar más ventas esta semana:\n\n{deals_summary}"
-                
-                advice = call_openrouter(prompt)
-                st.markdown("### 📋 Recomendaciones de la IA")
-                st.write(advice)
-
-    with tab2:
-        st.subheader("Redactor de Seguimiento")
-        if not contacts_df.empty:
-            contact_to_email = st.selectbox("Selecciona un contacto:", contacts_df['Name'].unique())
-            selected_contact = contacts_df[contacts_df['Name'] == contact_to_email].iloc[0]
+    if not deals_df.empty:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Pipeline by Stage")
+            stage_counts = deals_df.groupby('Stage').size().reset_index(name='Deals')
+            fig_pie = px.pie(stage_counts, values='Deals', names='Stage', hole=0.4,
+                             color_discrete_sequence=px.colors.qualitative.Pastel)
+            st.plotly_chart(fig_pie, use_container_width=True)
             
-            tone = st.radio("Tono del correo:", ["Formal", "Amigable", "Persuasivo"])
+        with col2:
+            st.subheader("Deal Value Distribution")
+            fig_hist = px.histogram(deals_df, x="Value", nbins=10, 
+                                    color_discrete_sequence=['#27ae60'])
+            st.plotly_chart(fig_hist, use_container_width=True)
             
-            if st.button("Redactar Correo"):
-                with st.spinner("Redactando..."):
-                    prompt = f"Escribe un correo electrónico corto de seguimiento para {selected_contact['Name']} de la empresa {selected_contact['Company']}. El tono debe ser {tone}. El objetivo es agendar una reunión para hablar sobre nuestros productos lácteos artesanales."
-                    
-                    email_draft = call_openrouter(prompt)
-                    st.markdown("### 📝 Borrador Sugerido")
-                    st.text_area("Copia este texto:", email_draft, height=300)
-        else:
-            st.info("Agrega contactos primero para redactar correos.")
+        st.markdown("---")
+        
+        st.subheader("Expected Close Dates")
+        deals_df['Close Date'] = pd.to_datetime(deals_df['Close Date'])
+        fig_timeline = px.scatter(deals_df, x="Close Date", y="Value", color="Stage",
+                                  size="Value", hover_name="Deal Name",
+                                  title="Deal Value Over Time")
+        st.plotly_chart(fig_timeline, use_container_width=True)
+    else:
+        st.info("Add some deals to see analytics!")
+
+# --- END OF APP ---
 

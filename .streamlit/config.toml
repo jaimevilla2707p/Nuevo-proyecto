@@ -1,0 +1,7 @@
+[client]
+toolbarMode = "minimal"
+showErrorDetails = false
+
+[ui]
+hideSidebarNav = false
+print("ocultar menu")
