@@ -4,4 +4,3 @@ showErrorDetails = false
 
 [ui]
 hideSidebarNav = false
-print("ocultar menu")
