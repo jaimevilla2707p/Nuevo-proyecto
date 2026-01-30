@@ -7,7 +7,7 @@ import json
 from utils import call_openrouter
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="Kumis del Balcón 🐮", page_icon="🐮", layout="wide")
+st.set_page_config(page_title="Kumis del Balcón 🐮", page_icon="🐮", layout="wide", initial_sidebar_state="expanded")
 
 # --- SESSION STATE (CART) ---
 if 'cart' not in st.session_state:
@@ -138,6 +138,9 @@ menu_categories = {
 
 # --- SIDEBAR (CONFIG & CART) ---
 with st.sidebar:
+    # --- VISUALS ---
+    st.title("🐮 Menú y Pedidos")
+    
     # Check for developer mode via URL query parameter (?dev=true)
     is_dev = st.query_params.get("dev", "false").lower() == "true"
     
