@@ -147,7 +147,6 @@ with st.sidebar:
             <style>
                 #MainMenu {visibility: hidden;}
                 footer {visibility: hidden;}
-                header {visibility: hidden;}
                 [data-testid="stToolbar"] {visibility: hidden !important;}
             </style>
         """, unsafe_allow_html=True)
