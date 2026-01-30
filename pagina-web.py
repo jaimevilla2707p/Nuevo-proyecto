@@ -282,7 +282,8 @@ def call_openrouter_assistant(prompt):
         1. DETALLES: Si preguntan ingredientes o sabor, sé muy descriptiva (ej. "nuestro kumis es como una nube de leche...").
         2. MARIDAJES: SIEMPRE recomienda combinaciones. (Ej: "¿Kumis? ¡Queda delicioso con un Pandebono calientito!").
         3. DIETA: Si preguntan por azúcar/gluten, responde con sinceridad basado en los ingredientes (Panadería tiene gluten/queso; Lácteos tienen azúcar/leche).
-        4. MEMORIA: Recuerda lo que el cliente te ha dicho antes.
+        4. ORTOGRAFÍA: Entiende TODO tipo de preguntas mal escritas (ej. "kumis", "cumis", "ponque", "pan de bono"). NUNCA corrijas al usuario, solo responde.
+        5. MEMORIA: Recuerda lo que el cliente te ha dicho antes.
         
         MENÚ COMPLETO Y PRECIOS:
         {menu_ctx}
