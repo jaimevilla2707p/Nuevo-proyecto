@@ -9,3 +9,6 @@ __pycache__/
 ngrok
 ngrok.zip
 ngrok.log
+
+# Streamlit secrets (local)
+.streamlit/secrets.toml

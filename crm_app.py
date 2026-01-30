@@ -5,6 +5,8 @@ import os
 from datetime import datetime
 import requests
 import json
+import re
+import random
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Growth CRM", page_icon="🚀", layout="wide")
@@ -217,9 +219,17 @@ elif page == "AI Assistant":
     st.title("🤖 AI Sales Assistant")
     st.markdown("Use AI to analyze your pipeline, draft emails, and get sales advice.")
 
-    API_KEY = "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"
+    # API key — prefer Streamlit Secrets (OPENROUTER_API_KEY) or fallback to env var
+    API_KEY = ""
+    try:
+        API_KEY = st.secrets["OPENROUTER_API_KEY"]
+    except Exception:
+        API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
     
     def call_openrouter(prompt):
+        # Warn if API key not configured
+        if not API_KEY:
+            return "⚠️ Muuu... No tengo la API key configurada. Añade `OPENROUTER_API_KEY` en Streamlit Secrets o en las variables de entorno."
         try:
             response = requests.post(
                 url="https://openrouter.ai/api/v1/chat/completions",
@@ -238,7 +248,7 @@ elif page == "AI Assistant":
         except Exception as e:
             return f"Error de conexión: {str(e)}"
 
-    tab1, tab2 = st.tabs(["💡 Estrategia de Ventas", "📧 Redactor de Correos"])
+    tab1, tab2, tab3 = st.tabs(["💡 Estrategia de Ventas", "📧 Redactor de Correos", "💬 Vaquita Chat"])
 
     with tab1:
         st.subheader("Análisis de Pipeline")
@@ -269,4 +279,199 @@ elif page == "AI Assistant":
                     st.text_area("Copia este texto:", email_draft, height=300)
         else:
             st.info("Agrega contactos primero para redactar correos.")
+
+    # --- Vaquita Chat (estilo WhatsApp) ---
+    with tab3:
+        st.subheader("Chat con la Vaquita 🐮")
+
+        # Initialize session state for chat history
+        if 'vaquita_chat' not in st.session_state:
+            st.session_state.vaquita_chat = [
+                {"role": "bot", "content": "Muuu! Soy la Vaquita, ¿en qué te ayudo hoy? 🐄"}
+            ]
+
+        # Chat display area with fixed height and scroll
+        chat_css = """
+        <style>
+        .chat-box {height:400px; overflow-y:auto; padding:12px; border:1px solid #e6e6e6; border-radius:8px; background:#fafafa}
+        .msg {margin:8px 0; max-width:72%; padding:10px; border-radius:12px; clear:both}
+        .msg.user {background:#dcf8c6; float:right}
+        .msg.bot {background:#ffffff; float:left}
+        .sender {font-size:11px; color:#888; margin-bottom:4px}
+        </style>
+        """
+
+        messages_html = []
+        for m in st.session_state.vaquita_chat:
+            role = m.get('role', 'bot')
+            cls = 'user' if role == 'user' else 'bot'
+            sender = 'Tú' if role == 'user' else 'Vaquita'
+            # Escape content for safety
+            content = m.get('content', '')
+            messages_html.append(f"<div class='msg {cls}'><div class='sender'>{sender}</div><div class='content'>{content}</div></div>")
+
+        st.markdown(chat_css + "<div class='chat-box'>" + "".join(messages_html) + "</div>", unsafe_allow_html=True)
+
+        # Input and send
+        user_input = st.text_input("Escribe un mensaje...", key="vaquita_input")
+        if st.button("Enviar", key="vaquita_send") or (user_input and user_input.endswith('\n')):
+            prompt = user_input.strip()
+            if prompt:
+                st.session_state.vaquita_chat.append({"role": "user", "content": prompt})
+
+                # Call OpenRouter or enhanced local fallback with expanded knowledge
+                def call_openrouter_chat(prompt_text):
+                    # Local knowledge about Sevilla, Valle del Cauca
+                    sevilla_facts = {
+                        "overview": (
+                            "Sevilla es un municipio del departamento del Valle del Cauca, Colombia. "
+                            "Está ubicado en la región Andina del suroeste colombiano y es conocido por su producción agrícola, especialmente café y caña de azúcar."
+                        ),
+                        "history": (
+                            "Sevilla fue fundada en 1903 y ha crecido como un centro agrícola y comercial en la región. "
+                            "Su historia incluye desarrollo ligado a la expansión del cultivo de café en el siglo XX y la construcción de infraestructura vial que conectó el municipio con otras ciudades del Valle del Cauca."
+                        ),
+                        "population": (
+                            "La población de Sevilla es de decenas de miles de habitantes; para cifras exactas consulta el DANE o fuentes oficiales locales, ya que varían con censos y estimaciones."
+                        ),
+                        "economy": (
+                            "La economía se basa en la agricultura (café, caña de azúcar, frutales), comercio local y servicios."
+                        )
+                    }
+
+                    def local_vaquita_reply(text):
+                        lower = text.lower()
+
+                        # Historical / general queries about Sevilla
+                        if any(k in lower for k in ["sevilla", "valle del cauca", "municipio"]):
+                            if any(w in lower for w in ["historia", "fund", "fundó", "fundacion", "fundación"]):
+                                return sevilla_facts['history']
+                            if any(w in lower for w in ["poblacion", "habitantes", "cuantos"]):
+                                return sevilla_facts['population']
+                            if any(w in lower for w in ["econom", "economia", "trabajo", "actividad"]):
+                                return sevilla_facts['economy']
+                            return sevilla_facts['overview']
+
+                        # Reuse CRM-specific local handlers from before
+                        if re.search(r"\b(hola|buenas|hey|buenos)\b", lower):
+                            return "¡Hola! Muuu... Soy la Vaquita. Puedo ayudarte con contactos, pipeline, redactar correos o responder preguntas generales."
+
+                        m = re.search(r"(tel(e[fó]no|fono)|movil|móvil|telefono) de ([a-zA-Z\s]+)", lower)
+                        if m:
+                            name = m.group(3).strip()
+                            matched = contacts_df[contacts_df['Name'].str.contains(name, case=False, na=False)]
+                            if not matched.empty:
+                                phone = matched.iloc[0].get('Phone', 'No registrado')
+                                return f"El teléfono de {matched.iloc[0]['Name']} es: {phone}"
+                            return f"No encuentro a {name} en tus contactos."
+
+                        m2 = re.search(r"email de ([a-zA-Z\s]+)|correo de ([a-zA-Z\s]+)", lower)
+                        if m2:
+                            name = (m2.group(1) or m2.group(2) or "").strip()
+                            matched = contacts_df[contacts_df['Name'].str.contains(name, case=False, na=False)]
+                            if not matched.empty:
+                                email = matched.iloc[0].get('Email', 'No registrado')
+                                return f"El correo de {matched.iloc[0]['Name']} es: {email}"
+                            return f"No encuentro a {name} en tus contactos."
+
+                        if "redactar" in lower or "correo" in lower or "email" in lower:
+                            names = contacts_df['Name'].tolist() if not contacts_df.empty else []
+                            name_found = None
+                            for n in names:
+                                if n.lower() in lower:
+                                    name_found = n
+                                    break
+                            tone = 'amigable'
+                            if 'formal' in lower:
+                                tone = 'formal'
+                            if name_found:
+                                company = contacts_df[contacts_df['Name'] == name_found].iloc[0].get('Company', '')
+                                return (f"Asunto: Seguimiento - {name_found}\n\nHola {name_found},\n\n" \
+                                        f"Quería hacer un seguimiento sobre nuestra conversación respecto a {company}. " \
+                                        f"¿Tienes 20 minutos esta semana para una reunión?\n\nSaludos,\nTu equipo")
+                            return "Puedo redactar un correo de seguimiento breve. Dime el nombre del contacto y el tono (Formal/Amigable)."
+
+                        if any(w in lower for w in ['pipeline', 'deal', 'negocio', 'ventas', 'cierres']):
+                            if deals_df.empty:
+                                return "No veo deals en tu pipeline. Añade algunos para que pueda analizarlos."
+                            df = deals_df.copy()
+                            try:
+                                df['Close Date'] = pd.to_datetime(df['Close Date'], errors='coerce')
+                            except Exception:
+                                pass
+                            top = df.sort_values(by=['Value'], ascending=False).head(3)
+                            bullets = []
+                            for _, d in top.iterrows():
+                                bullets.append(f"- {d.get('Deal Name','')} ({d.get('Company','')}) — ${d.get('Value',0):,.0f}")
+                            return "Recomiendo priorizar estos deals:\n" + "\n".join(bullets)
+
+                        if 'cuantos' in lower or 'total' in lower or 'cantidad' in lower:
+                            total_contacts = len(contacts_df)
+                            total_deals = len(deals_df)
+                            total_value = deals_df['Value'].sum() if not deals_df.empty else 0
+                            return (f"Tienes {total_contacts} contactos, {total_deals} deals en el CRM, " \
+                                    f"con un valor total de ${total_value:,.0f} en pipeline.")
+
+                        calc = re.search(r"(\d+[\.,]?\d*)\s*(\+|\-|\*|x|/|dividir|por)\s*(\d+[\.,]?\d*)", lower)
+                        if calc:
+                            a = float(calc.group(1).replace(',', '.'))
+                            op = calc.group(2)
+                            b = float(calc.group(3).replace(',', '.'))
+                            if op in ['+', 'más', 'mas']:
+                                return str(a + b)
+                            if op in ['-', 'menos']:
+                                return str(a - b)
+                            if op in ['*', 'x', 'por']:
+                                return str(a * b)
+                            if op in ['/', 'dividir']:
+                                return str(a / b if b != 0 else 'inf')
+
+                        replies = [
+                            "Muuu... cuéntame más sobre eso.",
+                            "Interesante — ¿quieres que lo convierta en una tarea o un correo?",
+                            "Puedo ayudarte a priorizar clientes y redactar mensajes cortos.",
+                        ]
+                        return random.choice(replies)
+
+                    # If we have an API key, prefer the external model for broad/general knowledge
+                    if API_KEY:
+                        try:
+                            payload = {
+                                "model": "google/gemini-2.0-flash-exp:free",
+                                "messages": [
+                                    {"role": "system", "content": "Eres un asistente útil, preciso y conciso. Responde en español."},
+                                    {"role": "user", "content": prompt_text}
+                                ],
+                                "temperature": 0.2,
+                                "max_tokens": 800
+                            }
+                            response = requests.post(
+                                url="https://openrouter.ai/api/v1/chat/completions",
+                                headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
+                                data=json.dumps(payload),
+                                timeout=15
+                            )
+                            if response.status_code == 200:
+                                j = response.json()
+                                # Navigate possible response shapes
+                                try:
+                                    return j['choices'][0]['message']['content']
+                                except Exception:
+                                    return j.get('text', str(j))
+                            else:
+                                # Fallback to local if API returns error
+                                return local_vaquita_reply(prompt_text) + f"\n\n(Nota: respuesta parcial debido a error API {response.status_code})"
+                        except Exception:
+                            return local_vaquita_reply(prompt_text) + "\n\n(Nota: respuesta local por fallo de conexión con la API)"
+
+                    # No API key -> local
+                    return local_vaquita_reply(prompt_text)
+
+                with st.spinner("La Vaquita está pensando... 🐄"):
+                    reply = call_openrouter_chat(prompt)
+                    st.session_state.vaquita_chat.append({"role": "bot", "content": reply})
+                    # Clear input field
+                    st.session_state.vaquita_input = ""
+                    # Rerun so the chat area scrolls (Streamlit will re-render)
+                    st.experimental_rerun()
 

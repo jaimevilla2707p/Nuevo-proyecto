@@ -235,51 +235,174 @@ else:
 
 # --- AI ASSISTANT (CHATBOT) ---
 st.sidebar.markdown("---")
-st.sidebar.subheader("🐮 Chat con la Vaquita (IA)")
-st.sidebar.caption("¡Pregúntame sobre el menú o sobre Sevilla!")
+st.sidebar.markdown("### 🐮 Chat con la Vaquita")
+st.sidebar.caption("💬 Pregúntame sobre nuestro menú, precios, recomendaciones o Sevilla")
 
-API_KEY = "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"
+# API key management — store this in Streamlit Secrets as `OPENROUTER_API_KEY`
+import os
+API_KEY = ""
+try:
+    API_KEY = st.secrets["OPENROUTER_API_KEY"]
+except Exception:
+    API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 
 def call_openrouter(prompt):
-    try:
-        # Contexto del negocio para la IA
-        menu_ctx = "\n".join([f"- {k}: {', '.join([i['name'] + ' ($' + str(i['price']) + ')' for i in v])}" for k, v in menu_categories.items()])
-        full_context = f"""
-        Eres 'La Vaquita', la asistente virtual de 'Kumis del Balcón' en Sevilla, Valle del Cauca.
-        Eres amigable, campestre y usas muchos emojis de vacas y café 🐮☕.
+    """Chat inteligente con La Vaquita. Responde preguntas del menú, recomendaciones y sobre Sevilla."""
+    import re
+
+    def local_menu_answer(q):
+        """Respuestas locales inteligentes para preguntas comunes (rápido y confiable)."""
+        ql = q.lower().strip()
+
+        # 1. BÚSQUEDA DE PRODUCTOS (POR NOMBRE)
+        for cat, items in menu_categories.items():
+            for it in items:
+                name_lower = it['name'].lower()
+                # Busca coincidencias exactas o parciales significativas
+                if name_lower in ql or ql in name_lower:
+                    return f"🐮 *{it['name']}*: ${it['price']:,}\n_{it['desc']}_"
+                # Búsqueda por palabras clave
+                words = [w for w in name_lower.split() if len(w) > 2]
+                if words and all(w in ql for w in words):
+                    return f"🐮 *{it['name']}*: ${it['price']:,}\n_{it['desc']}_"
+
+        # 2. BÚSQUEDA POR CATEGORÍA
+        for cat, items in menu_categories.items():
+            cat_lower = cat.lower()
+            if any(keyword in ql for keyword in ["lácteos", "kumis", "yogurt", "arroz con leche"]):
+                if "🐮" in cat:
+                    lines = [f"*{cat}*:"]
+                    for it in items[:3]:
+                        lines.append(f"• *{it['name']}*: ${it['price']:,}")
+                    return "\n".join(lines)
+            elif any(keyword in ql for keyword in ["panadería", "pandebono", "buñuelo", "torta"]):
+                if "🥐" in cat:
+                    lines = [f"*{cat}*:"]
+                    for it in items[:3]:
+                        lines.append(f"• *{it['name']}*: ${it['price']:,}")
+                    return "\n".join(lines)
+            elif any(keyword in ql for keyword in ["repostería", "cheesecake", "galleta", "dulce"]):
+                if "🍰" in cat:
+                    lines = [f"*{cat}*:"]
+                    for it in items[:3]:
+                        lines.append(f"• *{it['name']}*: ${it['price']:,}")
+                    return "\n".join(lines)
+            elif any(keyword in ql for keyword in ["bebida", "café", "chocolate", "avena"]):
+                if "☕" in cat:
+                    lines = [f"*{cat}*:"]
+                    for it in items[:3]:
+                        lines.append(f"• *{it['name']}*: ${it['price']:,}")
+                    return "\n".join(lines)
+
+        # 3. MENÚ COMPLETO
+        if any(x in ql for x in ["menú", "menu", "qué tienen", "qué ofrecen", "productos", "carta"]):
+            lines = ["🐮 *Nuestro Menú:*"]
+            for cat, items in menu_categories.items():
+                lines.append(f"\n{cat}")
+            lines.append("\n_¿Pregúntame por una categoría específica!_")
+            return "\n".join(lines)
+
+        # 4. RECOMENDACIONES
+        if any(x in ql for x in ["recomienda", "recomendación", "sugerencia", "qué me doy", "qué pido", "mejor"]):
+            recommendations = [
+                "🐮 *Clásico Sevillano:* Kumis Tradicional + Pandebono = $11.500 ✨",
+                "🐮 *Dulce Perfecto:* Cheesecake de Maracuyá + Café de la Casa = $13.500 😋",
+                "🐮 *Mañana Campesina:* Chocolate Santafereno + Torta de Almojábana = $13.000 ☕",
+                "🐮 *Tarde de Cine:* Galleta de Chip + Avena Helada = $7.500 🍿"
+            ]
+            import random
+            return "\n".join(random.sample(recommendations, 2))
+
+        # 5. PRECIOS (palabra clave 'precio', 'costo', 'cuánto')
+        if any(x in ql for x in ["precio", "costo", "cuánto", "vale", "cuánto cuesta"]):
+            return "💰 Pregúntame por el producto específico y te digo el precio. ¿Cuál te interesa?"
+
+        # 6. TAMAÑOS Y PORCIONES
+        if any(x in ql for x in ["tamaño", "porción", "litro", "16oz", "medida", "grande", "pequeño"]):
+            return ("🐮 Tenemos:\n"
+                    "• *Kumis Tradicional*: 16oz por $8.000\n"
+                    "• *Kumis Litro*: 1L por $18.000\n"
+                    "_¿Otros productos en tamaños especiales? Consulta por WhatsApp._")
+
+        # 7. ALÉRGENOS Y RESTRICCIONES
+        if any(x in ql for x in ["alerg", "alérg", "sin gluten", "vegano", "vegetariano", "intolerancia", "lactosa"]):
+            return ("🐮 ¡Importante! No tenemos lista completa de alérgenos en la app.\n"
+                    "Por seguridad, *confirma ingredientes por WhatsApp* antes de pedir.\n"
+                    "📲 Escribenos: https://wa.me/573127321920")
+
+        # 8. UBICACIÓN Y HORARIOS
+        if any(x in ql for x in ["dónde", "ubicación", "dirección", "horario", "abierto", "cierre"]):
+            return ("📍 *Kumis del Balcón*\n"
+                    "Carrera 50 # 25-10\n"
+                    "Frente al Parque Principal\n"
+                    "Sevilla, Valle del Cauca\n"
+                    "📞 310 123 4567")
+
+        # 9. SEVILLA Y TURISMO
+        if any(x in ql for x in ["sevilla", "turismo", "qué hacer", "visitar", "basílica", "paisaje cultural", "bandola"]):
+            return ("🌄 *Sevilla - Capital Cafetera* ☕\n"
+                    "• 🏰 Basílica San Luis Gonzaga\n"
+                    "• 🌿 Paisaje Cultural Cafetero (Patrimonio UNESCO)\n"
+                    "• 🎵 Festival de la Bandola (agosto)\n"
+                    "¡Ven a visitarnos y disfruta de Kumis! 🐮")
+
+        # 10. CÓMO ORDENAR
+        if any(x in ql for x in ["cómo pedir", "orden", "pedido", "comprar", "domicilio", "delivery"]):
+            return ("🐮 *¿Cómo Ordenar?*\n"
+                    "1. Elige productos de nuestro menú\n"
+                    "2. Agrega al carrito\n"
+                    "3. Completa tus datos\n"
+                    "4. ¡Envía por WhatsApp!\n"
+                    "_También puedes ordenar presencialmente en nuestro local._")
+
+        # Si nada coincide
+        return None
+
+    # Intenta responder localmente primero
+    local_answer = local_menu_answer(prompt)
+    if local_answer:
+        return local_answer
+
+    # Si hay API key, intenta con el modelo externo
+    if API_KEY:
+        menu_ctx = json.dumps({k: v for k, v in menu_categories.items()}, ensure_ascii=False)
+        full_context = f"""Eres 'La Vaquita', asistente de Kumis del Balcón (Sevilla, Valle del Cauca).
+Responde en español, de forma breve y amable con emojis de vacas y café.
+Responde SOLO sobre: menú, precios, recomendaciones, ubicación, horarios y Sevilla.
+Si preguntan otra cosa, sugiere preguntarme sobre el menú.
+
+MENÚ: {menu_ctx}"""
         
-        NUESTRO MENÚ ACTUAL:
-        {menu_ctx}
-        
-        SOBRE SEVILLA:
-        - Capital Cafetera de Colombia.
-        - Patrimonio del Paisaje Cultural Cafetero.
-        - Famosa por sus balcones, el Festival de la Bandola y la Basílica San Luis Gonzaga.
-        
-        REGLAS:
-        - Recomienda maridajes (ej. Kumis con Pandebono o Torta de Almojábana).
-        - Si preguntan por Sevilla, invítales a visitarnos frente al parque principal.
-        - Sé breve y muy cordial.
-        """
-        
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-            },
-            data=json.dumps({
-                "model": "google/gemini-2.0-flash-exp:free",
-                "messages": [
-                    {"role": "system", "content": full_context},
-                    {"role": "user", "content": prompt}
-                ]
-            })
-        )
-        if response.status_code == 200:
-            return response.json()['choices'][0]['message']['content']
-        return "Muuu... parece que mi conexión falló. ¡Prueba de nuevo! 🐮"
-    except:
-        return "Lo siento, la vaquita está descansando. Intenta en un momento. 🐮"
+        try:
+            resp = requests.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
+                data=json.dumps({
+                    "model": "google/gemini-2.0-flash-exp:free",
+                    "messages": [
+                        {"role": "system", "content": full_context},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "max_tokens": 300,
+                    "temperature": 0.3
+                }),
+                timeout=8
+            )
+            if resp.status_code == 200:
+                content = resp.json()['choices'][0]['message'].get('content', '')
+                if content:
+                    return content
+        except:
+            pass
+    
+    # Fallback final
+    return ("🐮 Muuu... ¡Perdón! 😅\n"
+            "Pregúntame sobre:\n"
+            "• Productos del menú\n"
+            "• Precios y recomendaciones\n"
+            "• Cómo ordenar\n"
+            "• Sevilla y turismo\n"
+            "_¿Qué te gustaría saber?_")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
