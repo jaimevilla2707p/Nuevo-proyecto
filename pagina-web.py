@@ -146,13 +146,14 @@ with st.sidebar:
     
     # Hide Streamlit UI for non-developers
     if not is_dev:
-        st.markdown("""
-            <style>
-                #MainMenu {visibility: hidden;}
-                footer {visibility: hidden;}
-                [data-testid="stToolbar"] {visibility: hidden !important;}
-            </style>
-        """, unsafe_allow_html=True)
+        pass
+#         st.markdown("""
+#             <style>
+#                 #MainMenu {visibility: hidden;}
+#                 footer {visibility: hidden;}
+#                 [data-testid="stToolbar"] {visibility: hidden !important;}
+#             </style>
+#         """, unsafe_allow_html=True)
 
     st.markdown("### 🛒 Tu Carrito")
 if st.session_state.cart:
