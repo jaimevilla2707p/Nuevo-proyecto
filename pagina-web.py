@@ -143,62 +143,57 @@ with st.sidebar:
     
     # Check for developer mode via URL query parameter (?dev=true)
     is_dev = st.query_params.get("dev", "false").lower() == "true"
-    
-    # Hide Streamlit UI for non-developers
-    if not is_dev:
-        pass
 
     st.markdown("### 🛒 Tu Carrito")
-if st.session_state.cart:
-    total = sum(item['price'] for item in st.session_state.cart)
-    
-    for i, item in enumerate(st.session_state.cart):
-        c1, c2 = st.sidebar.columns([3, 1])
-        c1.markdown(f"**{item['name']}**")
-        c2.markdown(f"${item['price']:,}")
-    
-    st.sidebar.markdown("---")
-    st.sidebar.markdown(f"### Total: ${total:,}")
-    
-    if st.sidebar.button("🗑️ Vaciar Carrito"):
-        st.session_state.cart = []
-        st.rerun()
 
-    st.sidebar.markdown("---")
-    
-    st.sidebar.markdown("---")
-    
-    # --- CHECKOUT FORM ---
-    st.sidebar.subheader("� Finalizar Pedido")
-    order_type = st.sidebar.selectbox("¿Dónde recibirás tu pedido?", ["🏠 A domicilio", "🪑 Para la mesa"])
-    
-    with st.sidebar.form("checkout_form"):
-        client_name = st.text_input("Nombre Completo:")
+    if st.session_state.cart:
+        total = sum(item['price'] for item in st.session_state.cart)
         
-        if order_type == "🏠 A domicilio":
-            client_address = st.text_input("Dirección de Entrega:")
-            table_info = ""
-        else:
-            table_info = st.text_input("Número de Mesa:")
-            client_address = "Local - Mesa " + table_info
+        for i, item in enumerate(st.session_state.cart):
+            c1, c2 = st.columns([3, 1])
+            c1.markdown(f"**{item['name']}**")
+            c2.markdown(f"${item['price']:,}")
+        
+        st.markdown("---")
+        st.markdown(f"### Total: ${total:,}")
+        
+        if st.button("🗑️ Vaciar Carrito"):
+            st.session_state.cart = []
+            st.rerun()
+
+        st.markdown("---")
+        
+        # --- CHECKOUT FORM ---
+        st.subheader("🛍️ Finalizar Pedido")
+        order_type = st.selectbox("¿Dónde recibirás tu pedido?", ["🏠 A domicilio", "🪑 Para la mesa"])
+        
+        with st.form("checkout_form"):
+            client_name = st.text_input("Nombre Completo:")
             
-        client_phone = st.text_input("Teléfono / WhatsApp:")
-        payment_method = st.radio("Método de Pago:", ["Nequi / Bancolombia", "Efectivo", "Wompi"])
-        
-        submitted = st.form_submit_button("Calculadora de Pedido")
-    
-    # --- WHATSAPP MESSAGE GENERATOR ---
-    check_condition = client_name and client_phone and (client_address if order_type == "🏠 A domicilio" else table_info)
-    
-    if check_condition:
-        # Create text for message
-        items_list = ""
-        for item in st.session_state.cart:
-            items_list += f"- {item['name']} (${item['price']:,})\n"
+            if order_type == "🏠 A domicilio":
+                client_address = st.text_input("Dirección de Entrega:")
+                table_info = ""
+            else:
+                table_info = st.text_input("Número de Mesa:")
+                client_address = "Local - Mesa " + table_info
+                
+            client_phone = st.text_input("Teléfono / WhatsApp:")
+            payment_method = st.radio("Método de Pago:", ["Nequi / Bancolombia", "Efectivo", "Wompi"])
             
-        order_details = f"*Mesa:* {table_info}" if order_type == "🪑 Para la mesa" else f"*Dirección:* {client_address}"
+            submitted = st.form_submit_button("✅ Confirmar Datos")
         
-        whatsapp_msg = f"""*¡Hola Kumis del Balcón!* 🐮
+        # --- WHATSAPP MESSAGE GENERATOR ---
+        check_condition = submitted and client_name and client_phone and (client_address if order_type == "🏠 A domicilio" else table_info)
+        
+        if check_condition:
+            # Create text for message
+            items_list = ""
+            for item in st.session_state.cart:
+                items_list += f"- {item['name']} (${item['price']:,})\n"
+                
+            order_details = f"*Mesa:* {table_info}" if order_type == "🪑 Para la mesa" else f"*Dirección:* {client_address}"
+            
+            whatsapp_msg = f"""*¡Hola Kumis del Balcón!* 🐮
 Quiero hacer el siguiente pedido (*{order_type}*):
 
 {items_list}
@@ -210,40 +205,40 @@ Quiero hacer el siguiente pedido (*{order_type}*):
 *Tel:* {client_phone}
 *Pago:* {payment_method}
 """
-        whatsapp_encoded = urllib.parse.quote(whatsapp_msg)
-        whatsapp_link = f"https://wa.me/573127321920?text={whatsapp_encoded}"
+            whatsapp_encoded = urllib.parse.quote(whatsapp_msg)
+            whatsapp_link = f"https://wa.me/573127321920?text={whatsapp_encoded}"
+            
+            st.success("✅ ¡Datos listos!")
+            st.markdown(f"""
+            <a href="{whatsapp_link}" target="_blank">
+                <button style="background-color: #25D366; color: white; border: none; padding: 12px; width: 100%; border-radius: 10px; font-weight: bold; font-size: 1.1rem; cursor: pointer;">
+                    📲 Enviar Pedido por WhatsApp
+                </button>
+            </a>
+            """, unsafe_allow_html=True)
+            
+            if payment_method == "Wompi":
+                url_wompi = f"https://checkout.wompi.co/p/?public-key=pub_test_Q5yDA9xoKdePzhSGeVe9HAez74wxobRY&currency=COP&amount-in-cents={total*100}&reference=KB-{random.randint(10000,99999)}"
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.link_button(f"💳 Ir a Pagar ${total:,} con Wompi", url_wompi)
+            
+            # Add Nequi QR for Eat-in orders
+            if order_type == "🪑 Para la mesa" and payment_method == "Nequi / Bancolombia":
+                st.markdown("---")
+                st.subheader("📱 Pago Rápido Nequi")
+                try:
+                    st.image("nequi_qr.png", caption="Escanea para pagar tu pedido en mesa")
+                except:
+                    st.warning("⚠️ QR de Nequi no disponible en este momento.")
+                 
+        elif submitted:
+            warning_msg = "⚠️ Por favor completa tus datos para finalizar el pedido."
+            if order_type == "🪑 Para la mesa" and not table_info:
+                warning_msg = "⚠️ Por favor indica tu número de mesa."
+            st.warning(warning_msg)
         
-        st.sidebar.success("✅ ¡Datos listos!")
-        st.sidebar.markdown(f"""
-        <a href="{whatsapp_link}" target="_blank">
-            <button style="background-color: #25D366; color: white; border: none; padding: 12px; width: 100%; border-radius: 10px; font-weight: bold; font-size: 1.1rem; cursor: pointer;">
-                📲 Enviar Pedido por WhatsApp
-            </button>
-        </a>
-        """, unsafe_allow_html=True)
-        
-        if payment_method == "Wompi":
-             url_wompi = f"https://checkout.wompi.co/p/?public-key=pub_test_Q5yDA9xoKdePzhSGeVe9HAez74wxobRY&currency=COP&amount-in-cents={total*100}&reference=KB-{random.randint(10000,99999)}"
-             st.sidebar.markdown(f"<br>", unsafe_allow_html=True)
-             st.sidebar.link_button(f"💳 Ir a Pagar ${total:,} con Wompi", url_wompi)
-        
-        # Add Nequi QR for Eat-in orders
-        if order_type == "🪑 Para la mesa" and payment_method == "Nequi / Bancolombia":
-            st.sidebar.markdown("---")
-            st.sidebar.subheader("📱 Pago Rápido Nequi")
-            try:
-                st.sidebar.image("nequi_qr.png", caption="Escanea para pagar tu pedido en mesa")
-            except:
-                st.sidebar.warning("⚠️ QR de Nequi no disponible en este momento.")
-             
     else:
-        warning_msg = "⚠️ Por favor completa tus datos para finalizar el pedido."
-        if order_type == "🪑 Para la mesa" and not table_info:
-            warning_msg = "⚠️ Por favor indica tu número de mesa."
-        st.sidebar.warning(warning_msg)
-    
-else:
-    st.sidebar.info("Tu carrito está vacío. ¡Antójate de algo delicioso! 😋")
+        st.info("Tu carrito está vacío. ¡Antójate de algo delicioso! 😋")
 
 # --- AI ASSISTANT (CHATBOT) ---
 st.sidebar.markdown("---")
@@ -261,32 +256,135 @@ def call_openrouter_assistant(prompt):
                 menu_ctx += f"- {item['name']}: ${item['price']:,} ({item['desc']})\n"
 
         full_context = f"""
-        Eres 'La Vaquita', la asistente experta de 'Kumis del Balcón' en Sevilla, Valle del Cauca. 🐮☕
-        Tu misión es antojar a los clientes y resolver CUALQUIER duda sobre nuestros productos con lujo de detalles.
+        Eres 'La Vaquita', la asistente virtual experta de 'Kumis del Balcón', ubicado en Sevilla, Valle del Cauca, Colombia. 🐮☕
+        Tu misión es antojar, informar y enamorar a los clientes con nuestros productos y con la riqueza cultural de Sevilla.
+        Responde SIEMPRE en español, de forma cálida, detallada y con personalidad campesina amable.
 
-        CONOCIMIENTO DE PRODUCTOS SECRETOS (Usa esto para responder):
-        - Kumis: Fermentado natural, textura cremosa, dulce equilibrado. Ingredientes: Leche fresca de vaca, azúcar, cultivos lácticos.
-        - Arroz con Leche: Receta de la abuela. Cremoso, con leche, canela, uvas pasas y queso rallado por encima.
-        - Pandebono Valluno: Hecho con almidón de yuca y mucho queso costeño. Esponjoso y chicludo.
-        - Buñuelo: Crocante por fuera, suave por dentro. Masa de queso y maicena.
-        - Empanada de Cambray: Masa artesanal rellena de dulce de guayaba y queso. ¡Típico de la región!
-        - Torta de Choclo: Maíz tierno molido, queso cuajada y un toque dulce.
-        - Café: Cultivado en las montañas de Sevilla (Capital Cafetera). Notas a chocolate y caramelo.
+        ══════════════════════════════════════════
+        🐮 CONOCIMIENTO PROFUNDO DE PRODUCTOS
+        ══════════════════════════════════════════
 
-        PERSONALIDAD:
-        - Eres una campesina amable y muy sabia sobre comida típica.
-        - Usas emojis: 🐮, 🥛, 🌽, 🧀, ☕, 🌄.
-        - Tratas al cliente de: "Vecino", "Corazón", "Mijo/a".
+        LÁCTEOS:
+        - Kumis Tradicional (16oz) / Kumis Litro: Bebida láctea fermentada de forma natural durante 24-48 horas.
+          Ingredientes: leche fresca de vaca, azúcar y cultivos lácticos vivos (Lactobacillus). Textura cremosa
+          y espesa, sabor suavemente ácido y dulce a la vez. Es el producto estrella del local. Ideal para
+          personas con digestión delicada pues sus probióticos ayudan al intestino. Contiene lactosa y azúcar.
+          Maridaje perfecto: Pandebono valluno o buñuelo recién hecho.
 
-        REGLAS DE RESPUESTA:
-        1. DETALLES: Si preguntan ingredientes o sabor, sé muy descriptiva (ej. "nuestro kumis es como una nube de leche...").
-        2. MARIDAJES: SIEMPRE recomienda combinaciones. (Ej: "¿Kumis? ¡Queda delicioso con un Pandebono calientito!").
-        3. DIETA: Si preguntan por azúcar/gluten, responde con sinceridad basado en los ingredientes (Panadería tiene gluten/queso; Lácteos tienen azúcar/leche).
-        4. ORTOGRAFÍA: Entiende TODO tipo de preguntas mal escritas (ej. "kumis", "cumis", "ponque", "pan de bono"). NUNCA corrijas al usuario, solo responde.
-        5. MEMORIA: Recuerda lo que el cliente te ha dicho antes.
-        
+        - Yogurt de Frutas: Elaborado con leche entera, fermentado y mezclado con pulpa natural de mora,
+          melocotón o fresa según disponibilidad. Espeso, sin colorantes artificiales. Contiene lactosa y azúcar.
+          Maridaje: Galleta de chip o torta de zanahoria.
+
+        - Arroz con Leche: Receta tradicional de la abuela. Arroz de grano largo cocido lentamente en leche
+          entera con canela en rama, panela/azúcar, uvas pasas y coronado con queso rallado. Es un postre
+          caliente y reconfortante. Contiene lácteos y azúcar. Maridaje: Café de la casa o chocolate santafereño.
+
+        - Fresas con Crema: Fresas frescas de campo bañadas con nuestra crema de leche especial.
+          Postre frío y ligero. Contiene lácteos. Maridaje: Avena helada o café.
+
+        PANADERÍA:
+        - Torta de Almojábana: Torta típica vallecaucana hecha con harina de maíz, queso blanco costeño y
+          huevo. Textura esponjosa, levemente salada. Contiene lácteos y huevo. Maridaje: Café tinto o chocolate caliente.
+
+        - Torta de Choclo: Elaborada con maíz tierno (choclo) molido, queso cuajada fresco, huevo y un toque
+          de azúcar. Sabor a maíz fresco muy característico. Contiene lácteos y huevo. Maridaje: Kumis frío o café.
+
+        - Pandebono Valluno: Ícono de la gastronomía vallecaucana. Hecho con almidón de yuca agria, queso
+          costeño rallado, huevo y poca sal. Crocante por fuera y chicloso por dentro. Sin gluten (es de yuca).
+          Contiene lácteos y huevo. Maridaje ideal: Kumis o chocolate santafereño.
+
+        - Buñuelo Grande: Masa de queso blanco y maicena, frita en aceite caliente. Crocante por fuera,
+          hueco y suave por dentro. Sin gluten. Contiene lácteos. Maridaje: Café tinto o chocolate.
+
+        - Empanada de Cambray: Masa de maíz artesanal rellena de dulce de guayaba casero y queso blanco.
+          Combinación dulce-salada muy típica del Valle. Contiene lácteos. Maridaje: Café o avena helada.
+
+        REPOSTERÍA:
+        - Cheesecake de Maracuyá: Postre frío con base de galleta, relleno cremoso de queso crema y salsa
+          natural de maracuyá. Dulce con toque ácido tropical. Contiene gluten y lácteos.
+          Maridaje: Café o avena helada.
+
+        - Galleta de Chip: Galleta horneada estilo americano con chips de chocolate. Contiene gluten, lácteos
+          y huevo. Maridaje: Yogurt o kumis.
+
+        - Torta de Zanahoria: Bizcocho húmedo de zanahoria con especias (canela, clavo), coronado con
+          frosting de queso crema. Contiene gluten, lácteos y huevo. Maridaje: Café de la casa.
+
+        BEBIDAS:
+        - Café de la Casa: Tinto campesino con granos cultivados en las montañas de Sevilla. Tostado medio,
+          notas a chocolate y caramelo. Sin lácteos, sin gluten. Maridaje: Cualquier producto del menú.
+
+        - Chocolate Santafereño: Chocolate de mesa en leche entera caliente, batido hasta producir espuma
+          gruesa. Se sirve con clavos de olor. Con lácteos. Maridaje: Pandebono, almojábana o buñuelo.
+
+        - Avena Helada: Bebida fría de avena, leche, canela y azúcar. Espesa y refrescante.
+          Contiene gluten y lácteos. Maridaje: Empanada o fresas.
+
+        - Sándwich Jamón y Queso: Pan artesanal con jamón cocido y queso derretido. Contiene gluten y lácteos.
+          Maridaje: Café o avena.
+
         MENÚ COMPLETO Y PRECIOS:
         {menu_ctx}
+
+        ══════════════════════════════════════════
+        🌄 HISTORIA Y CULTURA DE SEVILLA, VALLE DEL CAUCA
+        ══════════════════════════════════════════
+
+        HISTORIA:
+        - Sevilla fue fundada el 28 de octubre de 1903 por colonizadores antioqueños (paisas) que llegaron
+          al norte del Valle del Cauca buscando tierras fértiles para café.
+        - Su nombre fue inspirado en la ciudad española de Sevilla por la hermosura de sus paisajes.
+        - Declarada municipio oficial en 1907. Es conocida como la 'Capital Cafetera de Colombia' y como
+          la 'Ciudad de los Balcones' por sus coloridos balcones floridos, herencia de la arquitectura paisa.
+        - Durante el siglo XX fue clave en el desarrollo agrícola del Valle, con cultivos de café, caña,
+          plátano y frutales.
+
+        GEOGRAFÍA:
+        - Ubicada al norte del Valle del Cauca, a ~1.550 metros sobre el nivel del mar.
+        - Clima templado agradable: entre 18°C y 24°C todo el año.
+        - Rodeada de la cordillera central de los Andes, con paisajes cafeteros espectaculares.
+        - A unas 3 horas de Cali y cerca de Cartago y Caicedonia.
+        - Forma parte del 'Paisaje Cultural Cafetero de Colombia', declarado Patrimonio de la Humanidad
+          por la UNESCO en 2011.
+
+        CULTURA Y TRADICIONES:
+        - Festival Nacional de la Bandola (agosto): El festival de bandola más importante de Colombia.
+          Reúne músicos de todo el país que tocan música tradicional andina (bambuco, pasillo, torbellino).
+          La bandola es un instrumento de cuerda típico de la zona andina, similar al laúd.
+        - Basílica San Luis Gonzaga: Iglesia principal en el parque central, joya de arquitectura
+          neogótica-republicana y símbolo del municipio.
+        - Gastronomía local: kumis, pandebono, empanadas, buñuelos, arroz con leche, sancocho de gallina,
+          tamales y en cada esquina: café de origen.
+        - La gente sevillana es famosa por ser amable, hospitalaria y muy orgullosa de sus raíces.
+
+        TURISMO:
+        - Parque Principal: Corazón del municipio, rodeado de la Basílica y coloridos balcones.
+        - Mirador El Morro: Vista panorámica espectacular de Sevilla y sus montañas.
+        - Fincas cafeteras: Tours del café para conocer el proceso desde la mata hasta la taza.
+        - Kumis del Balcón está ubicado frente al parque principal, en el corazón turístico del municipio.
+
+        ══════════════════════════════════════════
+        🐮 PERSONALIDAD DE LA VAQUITA
+        ══════════════════════════════════════════
+        - Eres una campesina sevillana amable, sabia y muy orgullosa de su tierra.
+        - Usas emojis con moderación: 🐮 🥛 🌽 🧀 ☕ 🌄 🎸 🌺
+        - Tratas al cliente de: "Vecino/a", "Corazón", "Mijo/a", "Paisano/a".
+        - Usas expresiones colombianas naturales y espontáneas: "¡De una!", "¿Listo pues?", "¡Qué rico!".
+        - Tus respuestas son cálidas, nunca frías ni robóticas.
+        - Si alguien pregunta algo fuera de tu conocimiento, reconoces que no sabes y ofreces el teléfono: 📞 310 123 4567.
+
+        ══════════════════════════════════════════
+        📋 REGLAS DE RESPUESTA
+        ══════════════════════════════════════════
+        1. MENÚ: Responde sobre productos, ingredientes, precios, tamaños y preparación con detalle.
+        2. MARIDAJES: SIEMPRE sugiere una combinación de productos al final de tu respuesta.
+        3. DIETA: Para preguntas sobre gluten, lactosa, vegetariano o azúcar, usa la info real de los ingredientes.
+        4. HISTORIA/TURISMO: Responde con detalle y orgullo sobre Sevilla, su historia, cultura y turismo.
+        5. ORTOGRAFÍA: Entiende preguntas mal escritas (cumis, pan de bono, buñelo, almojabana). NUNCA corrijas.
+        6. PEDIDOS: Si alguien quiere pedir, indícale que use el carrito de la izquierda 🛒 y el botón de WhatsApp.
+        7. FUERA DE TEMA: Si la pregunta no tiene NADA que ver con el menú, Sevilla o gastronomía colombiana,
+           dilo amablemente y redirige la conversación.
+        8. LONGITUD: Sé completa y útil, pero concisa. Máximo 3-4 párrafos cortos por respuesta.
         """
         
         # Pass the history from session state
@@ -427,7 +525,6 @@ st.markdown("""
     <small>© 2026 Kumis del Balcón. Hecho con ❤️ en Colombia.</small>
 </div>
 """, unsafe_allow_html=True)
-
 
 
 
