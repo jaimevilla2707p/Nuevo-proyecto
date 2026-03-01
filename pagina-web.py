@@ -9,9 +9,20 @@ from utils import call_openrouter
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Kumis del Balcón 🐮", page_icon="🐮", layout="wide", initial_sidebar_state="expanded")
 
-# --- SESSION STATE (CART) ---
+# --- SESSION STATE ---
 if 'cart' not in st.session_state:
     st.session_state.cart = []
+# Generate a stable Wompi order reference valid for this session
+if 'wompi_ref' not in st.session_state:
+    st.session_state.wompi_ref = f"KB-{random.randint(10000, 99999)}"
+
+# --- HELPERS ---
+def get_wompi_key():
+    """Reads Wompi public key from st.secrets or falls back to test key."""
+    try:
+        return st.secrets.get("WOMPI_PUBLIC_KEY", "pub_test_Q5yDA9xoKdePzhSGeVe9HAez74wxobRY")
+    except Exception:
+        return "pub_test_Q5yDA9xoKdePzhSGeVe9HAez74wxobRY"
 
 # --- CUSTOM CSS ---
 st.markdown("""
@@ -218,7 +229,14 @@ Quiero hacer el siguiente pedido (*{order_type}*):
             """, unsafe_allow_html=True)
             
             if payment_method == "Wompi":
-                url_wompi = f"https://checkout.wompi.co/p/?public-key=pub_test_Q5yDA9xoKdePzhSGeVe9HAez74wxobRY&currency=COP&amount-in-cents={total*100}&reference=KB-{random.randint(10000,99999)}"
+                wompi_key = get_wompi_key()
+                url_wompi = (
+                    f"https://checkout.wompi.co/p/"
+                    f"?public-key={wompi_key}"
+                    f"&currency=COP"
+                    f"&amount-in-cents={total * 100}"
+                    f"&reference={st.session_state.wompi_ref}"
+                )
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.link_button(f"💳 Ir a Pagar ${total:,} con Wompi", url_wompi)
             
