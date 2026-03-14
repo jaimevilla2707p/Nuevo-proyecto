@@ -16,7 +16,7 @@ def get_api_key():
         pass
     return os.getenv("OPENROUTER_API_KEY", "")
 
-def call_openrouter(prompt=None, system_context="", model="google/gemini-2.0-flash-exp:free", manual_api_key="", messages=None):
+def call_openrouter(prompt=None, system_context="", model="google/gemini-2.0-flash-lite-preview-02-05:free", manual_api_key="", messages=None):
     """
     Calls the OpenRouter API with fallback logic and message history support.
     - Uses free-tier model IDs with the correct :free suffix.
@@ -33,8 +33,8 @@ def call_openrouter(prompt=None, system_context="", model="google/gemini-2.0-fla
     fallback_models = [
         "mistralai/mistral-small-3.1-24b-instruct:free",  # Best quality (may hit 429 under load)
         "meta-llama/llama-3.2-3b-instruct:free",          # Widely available
-        "google/gemma-3-4b-it:free",                       # Confirmed 200 ✅
-        "google/gemma-3n-e4b-it:free",                     # Confirmed 200 ✅
+        "google/gemma-3-e4b-it:free",                     # Updated Gemini-family model
+        "cognitivecomputations/dolphin3.0-r1-mistral-24b:free", 
         "liquid/lfm-2.5-1.2b-instruct:free",               # Fast lightweight fallback ✅
         "nvidia/nemotron-nano-9b-v2:free",                  # Final fallback ✅
     ]
