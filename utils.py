@@ -61,6 +61,7 @@ def call_openrouter(prompt=None, system_context="", model="google/gemini-2.0-fla
                 "messages": base_messages,
                 "temperature": 0.7,        # Conversational but focused
                 "max_tokens": 512,         # Keep responses concise
+                "stream": True,            # Empezar a mandar palabras rápido
             }
             response = requests.post(
                 url="https://openrouter.ai/api/v1/chat/completions",
@@ -72,18 +73,27 @@ def call_openrouter(prompt=None, system_context="", model="google/gemini-2.0-fla
                 },
                 data=json.dumps(payload),
                 timeout=30,  # Increased from 15s — free-tier models can be slow
+                stream=True, # Enable Server-Sent Events
             )
 
             if response.status_code == 200:
-                res_json = response.json()
-                if res_json.get("choices") and len(res_json["choices"]) > 0:
-                    content = res_json["choices"][0]["message"]["content"]
-                    if content and content.strip():
-                        return content.strip()
-                    else:
-                        last_error = f"Modelo {current_model} devolvió respuesta vacía."
-                else:
-                    last_error = f"Modelo {current_model}: respuesta sin choices."
+                def generator():
+                    for line in response.iter_lines():
+                        if line:
+                            line_str = line.decode('utf-8')
+                            if line_str.startswith('data: '):
+                                data_str = line_str[6:]
+                                if data_str == '[DONE]':
+                                    break
+                                try:
+                                    data_json = json.loads(data_str)
+                                    if "choices" in data_json and len(data_json["choices"]) > 0:
+                                        delta = data_json["choices"][0].get("delta", {})
+                                        if "content" in delta:
+                                            yield delta["content"]
+                                except Exception:
+                                    pass
+                return generator()
             elif response.status_code == 429:
                 last_error = f"Modelo {current_model}: límite de tasa alcanzado (429)."
             elif response.status_code == 402:

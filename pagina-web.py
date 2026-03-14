@@ -423,8 +423,14 @@ if prompt := st.sidebar.chat_input("¿Qué me recomiendas?"):
 
     with st.sidebar.chat_message("assistant"):
         response = call_openrouter_assistant(prompt)
-        st.markdown(response)
-    st.session_state.messages.append({"role": "assistant", "content": response})
+        if hasattr(response, '__iter__') and not isinstance(response, str):
+            # It's a streaming generator
+            full_response = st.write_stream(response)
+        else:
+            # It's a plain string (error message)
+            st.markdown(response)
+            full_response = response
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 if st.sidebar.button("Borrar Chat", key="clear_chat"):
     st.session_state.messages = []
