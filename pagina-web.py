@@ -12,9 +12,7 @@ st.set_page_config(page_title="Kumis del Balcón 🐮", page_icon="🐮", layout
 # --- SESSION STATE ---
 if 'cart' not in st.session_state:
     st.session_state.cart = []
-# Generate a stable Wompi order reference valid for this session
-if 'wompi_ref' not in st.session_state:
-    st.session_state.wompi_ref = f"KB-{random.randint(10000, 99999)}"
+# We no longer cache wompi_ref in session state to ensure unique references per payment attempt
 
 # --- HELPERS ---
 def get_wompi_key():
@@ -235,7 +233,7 @@ Quiero hacer el siguiente pedido (*{order_type}*):
                     f"?public-key={wompi_key}"
                     f"&currency=COP"
                     f"&amount-in-cents={total * 100}"
-                    f"&reference={st.session_state.wompi_ref}"
+                    f"&reference=KB-{random.randint(100, 999)}-{random.randint(1000, 9999)}"
                 )
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.link_button(f"💳 Ir a Pagar ${total:,} con Wompi", url_wompi)
@@ -461,7 +459,7 @@ st.markdown("""
 # --- RENDER MENU ---
 st.markdown("<h2 style='text-align: center; color: #2c3e50;'>Nuestra Carta</h2>", unsafe_allow_html=True)
 
-tabs = st.tabs(menu_categories.keys())
+tabs = st.tabs(list(menu_categories.keys()))
 
 for tab, (category, items) in zip(tabs, menu_categories.items()):
     with tab:
@@ -477,7 +475,7 @@ for tab, (category, items) in zip(tabs, menu_categories.items()):
                     if item["img"]:
                         try:
                             # Use Image.open to handle local files safely
-                            st.image(item["img"], use_container_width=True)
+                            st.image(item["img"], width='stretch')
                         except:
                             st.markdown(f"<div style='height: 150px; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 3rem;'>🍽️</div>", unsafe_allow_html=True)
                     else:
@@ -504,21 +502,21 @@ st.write("Ven a conocer nuestro hermoso municipio, famoso por sus balcones, su g
 c1, c2, c3 = st.columns(3)
 with c1:
     try:
-        st.image("sevilla_plaza.png", use_container_width=True)
+        st.image("sevilla_plaza.png", width='stretch')
     except:
         st.write("📷")
     st.markdown("🏰 **Basílica San Luis Gonzaga**")
     st.write("Una joya arquitectónica en el corazón del parque principal.")
 with c2:
     try:
-        st.image("sevilla_paisaje.png", use_container_width=True)
+        st.image("sevilla_paisaje.png", width='stretch')
     except:
         st.write("📷")
     st.markdown("☕ **Paisaje Cultural Cafetero**")
     st.write("Patrimonio de la humanidad. Vistas inigualables.")
 with c3:
     try:
-        st.image("logo.png", use_container_width=True) # Reuse logo or another img
+        st.image("logo.png", width='stretch') # Reuse logo or another img
     except:
         st.write("📷")
     st.markdown("🎉 **Festival de la Bandola**")
@@ -543,6 +541,3 @@ st.markdown("""
     <small>© 2026 Kumis del Balcón. Hecho con ❤️ en Colombia.</small>
 </div>
 """, unsafe_allow_html=True)
-
-
-
